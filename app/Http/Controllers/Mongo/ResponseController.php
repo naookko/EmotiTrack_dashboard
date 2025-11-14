@@ -28,22 +28,61 @@ class ResponseController extends Controller
             return response()->json([]);
         }
 
-        $responses = Response::query()
-            ->select([
-                'wha_id',
-                'stress_score',
-                'depression_score',
-                'total_score',
-                'response_date',
-                'created_at',
-                'updated_at',
-            ])
-            ->whereBetween('created_at', [
-                Carbon::parse($startDate)->startOfDay(),
-                Carbon::parse($endDate)->endOfDay(),
-            ])
-            ->orderBy('created_at')
-            ->get();
+        $start = Carbon::parse($startDate)->startOfDay()->utc();
+        $end = Carbon::parse($endDate)->endOfDay()->utc();
+
+        $pipeline = [
+            [
+                '$match' => [
+                    'created_at' => [
+                        '$gte' => new UTCDateTime($start),
+                        '$lte' => new UTCDateTime($end),
+                    ],
+                ],
+            ],
+            [
+                '$project' => [
+                    '_id'               => 0,
+                    'wha_id'            => 1,
+                    'stress_score'      => 1,
+                    'depression_score'  => 1,
+                    'total_score'       => 1,
+                    'response_date'     => 1,
+                    'created_at'        => 1,
+                    'updated_at'        => 1,
+                    'severity'          => [
+                        '$switch' => [
+                            'branches' => [
+                                [
+                                    'case' => ['$gte' => ['$total_score', 60]],
+                                    'then' => 'Extremo',
+                                ],
+                                [
+                                    'case' => ['$gte' => ['$total_score', 45]],
+                                    'then' => 'Severo',
+                                ],
+                                [
+                                    'case' => ['$gte' => ['$total_score', 30]],
+                                    'then' => 'Moderado',
+                                ],
+                                [
+                                    'case' => ['$gte' => ['$total_score', 20]],
+                                    'then' => 'Leve',
+                                ],
+                            ],
+                            'default' => 'Normal',
+                        ],
+                    ],
+                ],
+            ],
+            [
+                '$sort' => [
+                    'created_at' => 1,
+                ],
+            ],
+        ];
+
+        $responses = Response::raw(fn ($collection) => $collection->aggregate($pipeline)->toArray());
 
         return response()->json([
             'intervals' => $intervals,
