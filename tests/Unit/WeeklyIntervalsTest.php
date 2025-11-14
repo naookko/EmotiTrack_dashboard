@@ -10,6 +10,8 @@ it('starts intervals on the first Friday of the month', function () {
         'start' => '2024-03-01',
         'end'   => '2024-03-07',
     ]);
+
+    expect(WeeklyIntervals::firstStartDate($intervals))->toBe('2024-03-01');
 });
 
 it('keeps the final week even when it spills into the next month', function () {
@@ -33,4 +35,6 @@ it('keeps the final week even when it spills into the next month', function () {
             'end'   => '2025-10-02',
         ],
     ]);
+
+    expect(WeeklyIntervals::lastEndDate($intervals))->toBe('2025-10-02');
 });

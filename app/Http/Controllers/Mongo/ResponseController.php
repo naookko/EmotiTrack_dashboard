@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mongo;
 
 use App\Http\Controllers\Controller;
 use App\Models\Mongo\Response;
+use App\Support\WeeklyIntervals;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -17,34 +18,37 @@ class ResponseController extends Controller
             return response()->json(['message' => 'Invalid month provided.'], HttpResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        // $responses = Response::query()
-        //     ->select([
-        //         'wha_id',
-        //         'stress_score',
-        //         'depression_score',
-        //         'total_score',
-        //         'response_date',
-        //         'created_at',
-        //         'updated_at',
-        //     ])
-        //     ->whereMonth('created_at', $month)
-        //     ->orderBy('created_at')
-        //     ->get();
+        $year = (int) $request->query('year', now()->year);
+
+        $intervals = WeeklyIntervals::forMonth($year, $month);
+        $startDate = WeeklyIntervals::firstStartDate($intervals);
+        $endDate = WeeklyIntervals::lastEndDate($intervals);
+
+        if (!$startDate || !$endDate) {
+            return response()->json([]);
+        }
 
         $responses = Response::query()
-            ->whereMonth('created_at', $month)
+            ->select([
+                'wha_id',
+                'stress_score',
+                'depression_score',
+                'total_score',
+                'response_date',
+                'created_at',
+                'updated_at',
+            ])
+            ->whereBetween('created_at', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay(),
+            ])
             ->orderBy('created_at')
-            ->get()
-            ->groupBy('wha_id')
-            ->map(function ($items, $whaId) {
-                return [
-                    'wha_id'  => $whaId,
-                    'answers' => $items->pluck('answer')->all(),
-                ];
-            })
-            ->values();
+            ->get();
 
-        return response()->json($responses);
+        return response()->json([
+            'intervals' => $intervals,
+            'responses' => $responses,
+        ]);
     }
 
     public function monthlySummary(Request $request)

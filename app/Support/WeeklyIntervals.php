@@ -27,4 +27,14 @@ class WeeklyIntervals
 
         return $intervals;
     }
+
+    public static function firstStartDate(array $intervals): ?string
+    {
+        return $intervals[0]['start'] ?? null;
+    }
+
+    public static function lastEndDate(array $intervals): ?string
+    {
+        return $intervals ? $intervals[array_key_last($intervals)]['end'] : null;
+    }
 }
