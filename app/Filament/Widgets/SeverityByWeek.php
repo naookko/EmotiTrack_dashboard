@@ -13,9 +13,7 @@ class SeverityByWeek extends ChartWidget
 
     protected function getData(): array
     {
-        $request = request();
-        $year = (int) $request->query('year', now()->year);
-        $month = (int) $request->query('month', now()->month);
+        [$year, $month] = $this->resolveFilterDate();
 
         $data = $this->fetchResponsesWithSeverity($year, $month);
         $intervals = $data['intervals'] ?? [];
@@ -36,9 +34,40 @@ class SeverityByWeek extends ChartWidget
         return 'bar';
     }
 
+    protected function getFilters(): ?array
+    {
+        $options = [];
+        $cursor = now()->copy()->startOfMonth();
+
+        for ($i = 0; $i < 12; $i++) {
+            $key = $cursor->format('Y-m');
+            $options[$key] = $cursor->isoFormat('MMMM YYYY');
+            $cursor->subMonth();
+        }
+
+        return $options;
+    }
+
+    protected function getDefaultFilter(): ?string
+    {
+        return now()->format('Y-m');
+    }
+
     private function fetchResponsesWithSeverity(int $year, int $month): array
     {
         return app(ResponseController::class)->getMonthlyResponsesData($year, $month);
+    }
+
+    private function resolveFilterDate(): array
+    {
+        $filter = $this->filter ?? $this->getDefaultFilter();
+
+        if ($filter && str_contains($filter, '-')) {
+            [$year, $month] = explode('-', $filter, 2);
+            return [(int) $year, (int) $month];
+        }
+
+        return [now()->year, now()->month];
     }
 
     private function buildDatasets(array $intervals, array $responses): array
