@@ -183,7 +183,12 @@ class ResponseController extends Controller
 
         $result = Response::raw(fn ($collection) => $collection->aggregate($pipeline)->toArray());
 
-        return $result[0] ?? [
+        $first = $result[0] ?? null;
+        if ($first instanceof \MongoDB\Model\BSONDocument) {
+            $first = $first->getArrayCopy();
+        }
+
+        return $first ?? [
             'avg_stress_score' => 0,
             'avg_anxiety_score' => 0,
             'avg_depression_score' => 0,
