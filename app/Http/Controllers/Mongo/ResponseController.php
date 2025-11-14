@@ -149,4 +149,45 @@ class ResponseController extends Controller
 
         return response()->json($summary);
     }
+
+    public function getWeeklyAverages(Carbon $start, Carbon $end): array
+    {
+        $pipeline = [
+            [
+                '$match' => [
+                    'response_date' => [
+                        '$gte' => new UTCDateTime($start->copy()->startOfDay()->utc()),
+                        '$lte' => new UTCDateTime($end->copy()->endOfDay()->utc()),
+                    ],
+                ],
+            ],
+            [
+                '$group' => [
+                    '_id' => null,
+                    'avg_stress_score' => ['$avg' => '$stress_score'],
+                    'avg_anxiety_score' => ['$avg' => '$anxiety_score'],
+                    'avg_depression_score' => ['$avg' => '$depression_score'],
+                    'count_records' => ['$sum' => 1],
+                ],
+            ],
+            [
+                '$project' => [
+                    '_id' => 0,
+                    'avg_stress_score' => 1,
+                    'avg_anxiety_score' => 1,
+                    'avg_depression_score' => 1,
+                    'count_records' => 1,
+                ],
+            ],
+        ];
+
+        $result = Response::raw(fn ($collection) => $collection->aggregate($pipeline)->toArray());
+
+        return $result[0] ?? [
+            'avg_stress_score' => 0,
+            'avg_anxiety_score' => 0,
+            'avg_depression_score' => 0,
+            'count_records' => 0,
+        ];
+    }
 }
