@@ -20,12 +20,20 @@ class ResponseController extends Controller
 
         $year = (int) $request->query('year', now()->year);
 
+        return response()->json($this->getMonthlyResponsesData($year, $month));
+    }
+
+    public function getMonthlyResponsesData(int $year, int $month): array
+    {
         $intervals = WeeklyIntervals::forMonth($year, $month);
         $startDate = WeeklyIntervals::firstStartDate($intervals);
         $endDate = WeeklyIntervals::lastEndDate($intervals);
 
         if (!$startDate || !$endDate) {
-            return response()->json([]);
+            return [
+                'intervals' => [],
+                'responses' => [],
+            ];
         }
 
         $start = Carbon::parse($startDate)->startOfDay()->utc();
@@ -84,10 +92,10 @@ class ResponseController extends Controller
 
         $responses = Response::raw(fn ($collection) => $collection->aggregate($pipeline)->toArray());
 
-        return response()->json([
+        return [
             'intervals' => $intervals,
             'responses' => $responses,
-        ]);
+        ];
     }
 
     public function monthlySummary(Request $request)
